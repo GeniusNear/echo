@@ -13,9 +13,11 @@ interface SettingsModalProps {
 
 const STANDARD_RINGTONES = [
   { name: 'Стандартный (Классика)', url: 'https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3' },
-  { name: 'Мелодичный', url: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' },
-  { name: 'Спокойный (Пузырьки)', url: 'https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3' }
+  { name: 'Цифровой звонок', url: 'https://assets.mixkit.co/active_storage/sfx/2864/2864-preview.mp3' },
+  { name: 'Ретро телефон', url: 'https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3' },
+  { name: 'Мягкий сигнал', url: 'https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3' }
 ]
+
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userId, currentProfile, onUpdate }) => {
   const [nickname, setNickname] = useState(currentProfile.nickname || '')

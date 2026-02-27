@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X } from 'lucide-react' // Убрали неиспользуемый 'Plus'
 import { UserWithStatus } from '../hooks/useUsers'
 
 interface CreateChannelModalProps {
@@ -25,7 +25,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({ isOpen, 
   }
 
   const handleCreate = () => {
-    if (name.trim() && selectedUsers.length > 0) { // Минимум 1 другой пользователь
+    if (name.trim() && selectedUsers.length > 0) {
       onCreate(name.trim(), selectedUsers)
       onClose()
     } else {

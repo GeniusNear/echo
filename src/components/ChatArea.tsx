@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Users, X, Settings } from 'lucide-react' 
+import { Send, Phone, PhoneOff, Mic, MicOff, Video, VideoOff, X, Settings } from 'lucide-react' 
 import { Message, Channel } from '../hooks/useChat'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { VideoPlayer } from './VideoPlayer'
@@ -32,9 +32,21 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const { isCalling, localStream, remoteStreams, startCall, endCall, toggleVideo, toggleAudio, isVideoEnabled, isAudioEnabled } = useWebRTC(channel?.id || null, currentUserId)
+  // Получаем данные из нашего обновленного хука WebRTC
+  const { 
+    isCalling, 
+    localStream, 
+    remoteStreams, 
+    remoteVideoStatus, 
+    startCall, 
+    endCall, 
+    toggleVideo, 
+    toggleAudio, 
+    isVideoEnabled, 
+    isAudioEnabled 
+  } = useWebRTC(channel?.id || null, currentUserId)
 
-  // Следим за звонком через Presence
+  // Мониторинг Presence для счетчика и попапа
   useEffect(() => {
     if (!channel) return
     
@@ -62,7 +74,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     return () => { supabase.removeChannel(monitor) }
   }, [channel, currentUserId])
 
-  // Логика звука
+  // Управление звуком рингтона
   useEffect(() => {
     const shouldRing = activeCallersCount > 0 && !isCalling && ignoredCallId !== channel?.id
 
@@ -74,7 +86,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         audioRef.current.volume = ringtoneVolume
         
         audioRef.current.play().catch(e => {
-          console.warn("Браузер заблокировал звук звонка.", e)
+          console.warn("Браузер заблокировал авто-звук. Ожидание клика пользователя.", e)
         })
       } else {
         audioRef.current.volume = ringtoneVolume
@@ -147,7 +159,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   return (
     <div className="flex-1 flex flex-col bg-black/20 backdrop-blur-md relative h-full">
       
-      {/* POPUP Входящего звонка */}
+      {/* POPUP Входящего звонка (поверх всего) */}
       {!isCalling && activeCallersCount > 0 && ignoredCallId !== channel.id && caller && (
         <div className="fixed top-12 right-12 z-[9999] bg-[#111214] p-6 rounded-[24px] shadow-[0_15px_40px_rgba(0,0,0,0.8)] border border-white/5 flex flex-col items-center animate-in slide-in-from-right-8 fade-in duration-300 w-[280px]">
           <div className="w-[88px] h-[88px] rounded-full overflow-hidden bg-slate-800 border-[3px] border-[#2b2d31] mb-4 shadow-[0_0_15px_rgba(0,0,0,0.4)]">
@@ -163,10 +175,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           <p className="text-[13px] text-slate-400 mb-8 font-medium">Входящий звонок...</p>
           
           <div className="flex gap-8 w-full justify-center">
-            <button onClick={handleDeclineCall} className="w-14 h-14 bg-[#f23f42] hover:bg-[#da373c] rounded-full flex items-center justify-center text-white transition-all hover:scale-105 shadow-lg">
+            <button 
+              onClick={handleDeclineCall}
+              className="w-14 h-14 bg-[#f23f42] hover:bg-[#da373c] rounded-full flex items-center justify-center text-white transition-all hover:scale-105 shadow-lg"
+            >
               <X size={28} />
             </button>
-            <button onClick={handleStartCall} className="w-14 h-14 bg-[#23a559] hover:bg-[#1f8f4c] rounded-full flex items-center justify-center text-white transition-all hover:scale-105 shadow-[0_0_20px_rgba(35,165,89,0.4)] animate-bounce">
+            <button 
+              onClick={handleStartCall}
+              className="w-14 h-14 bg-[#23a559] hover:bg-[#1f8f4c] rounded-full flex items-center justify-center text-white transition-all hover:scale-105 shadow-[0_0_20px_rgba(35,165,89,0.4)] animate-bounce"
+            >
               <Phone size={24} className="fill-current animate-pulse" />
             </button>
           </div>
@@ -187,7 +205,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         </div>
         
         <div className="flex gap-2">
-          {/* Если мы НЕ звоним, показываем зеленую/синюю кнопку в шапке */}
           {!isCalling && (
             <button 
               onClick={handleStartCall} 
@@ -202,7 +219,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             </button>
           )}
           
-          {/* Кнопка настроек комнаты (только для админа), оставляем в шапке всегда */}
           {isCreator && (
             <button onClick={() => setIsManageModalOpen(true)} className="p-2 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors text-slate-300">
               <Settings size={20} />
@@ -211,12 +227,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         </div>
       </div>
 
-      {/* АКТИВНЫЙ ЗВОНОК: Сетка видео и нижняя панель управления */}
+      {/* ГИГАНТСКИЙ ЗВОНОК (Стиль Discord) */}
       {isCalling && (
         <div className="bg-[#000000] border-b border-white/5 flex flex-col">
-          {/* Сетка видео */}
+          {/* Сетка видео-карточек */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 p-4 max-h-[55vh] overflow-y-auto custom-scrollbar content-center justify-items-center">
             
+            {/* Наше локальное видео */}
             <div className="col-span-1 w-full max-w-2xl flex justify-center">
               <VideoPlayer 
                 stream={localStream} 
@@ -228,6 +245,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               />
             </div>
             
+            {/* Удаленные видео участников */}
             {remotePeers.map(([userId, stream]) => {
               const remoteProfile = getUserProfile(userId)
               return (
@@ -236,15 +254,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     stream={stream} 
                     userName={remoteProfile?.nickname || 'Участник'}
                     avatarUrl={remoteProfile?.avatar_url}
-                    // Пока считаем всех включенными, пока не синхронизируем статусы
-                    isVideoEnabled={true} 
+                    isVideoEnabled={remoteVideoStatus[userId] ?? true} 
                   />
                 </div>
               )
             })}
           </div>
 
-          {/* Панель управления (ВНИЗУ ПОД ВИДЕО) */}
+          {/* Панель управления (ВНИЗУ ПОД КАРТОЧКАМИ) */}
           <div className="flex justify-center items-center gap-4 py-4 pb-6 mt-2 relative before:absolute before:top-0 before:inset-x-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent">
             
             <button 
@@ -267,7 +284,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               {isAudioEnabled ? <Mic size={24} /> : <MicOff size={24} />}
             </button>
             
-            <div className="w-px h-8 bg-white/10 mx-2" /> {/* Разделитель */}
+            <div className="w-px h-8 bg-white/10 mx-2" /> 
             
             <button 
               onClick={endCall} 
@@ -276,23 +293,29 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             >
               <PhoneOff size={24} />
             </button>
-            
           </div>
         </div>
       )}
 
-      {/* Сообщения (остались на месте) */}
+      {/* Сообщения чата */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages.map((msg, index) => {
           const isMe = msg.user_id === currentUserId
           const time = new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
           const isSameUserAsPrev = index > 0 && messages[index - 1].user_id === msg.user_id
+          
           return (
             <div key={msg.id} className={`flex gap-4 ${isSameUserAsPrev ? 'mt-1' : 'mt-6'} ${isMe ? 'flex-row-reverse' : ''}`}>
               <div className="w-10 flex-shrink-0 flex justify-center">
                 {!isSameUserAsPrev && (
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border border-slate-700">
-                    {msg.profiles?.avatar_url ? <img src={msg.profiles.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold text-sm">{(msg.profiles?.nickname || 'U').charAt(0).toUpperCase()}</div>}
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border border-slate-700 shadow-sm">
+                    {msg.profiles?.avatar_url ? (
+                      <img src={msg.profiles.avatar_url} className="w-full h-full object-cover" alt="avatar" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400 font-bold text-sm bg-[#2b2d31]">
+                        {(msg.profiles?.nickname || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -303,7 +326,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     <span className="text-[10px] text-slate-500 font-mono">{time}</span>
                   </div>
                 )}
-                <div className={`px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed shadow-sm ${isMe ? 'bg-green-600 text-white rounded-tr-none' : 'bg-slate-800 border border-slate-700 text-slate-200 rounded-tl-none'}`}>
+                <div className={`px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed shadow-sm ${
+                  isMe 
+                    ? 'bg-[#23a559] text-white rounded-tr-none' 
+                    : 'bg-[#2b2d31] border border-white/5 text-slate-200 rounded-tl-none'
+                }`}>
                   {msg.content}
                 </div>
               </div>
@@ -313,13 +340,27 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Поле ввода сообщения */}
       <div className="p-4 bg-black/40 border-t border-white/5 backdrop-blur-md z-20">
         <form onSubmit={handleSubmit} className="flex gap-3">
-          <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={`Написать в #${channel.name}...`} className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500/50" />
-          <button type="submit" disabled={!text.trim()} className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white p-3 rounded-xl shadow-[0_0_15px_rgba(74,222,128,0.2)]"><Send size={20} /></button>
+          <input 
+            type="text" 
+            value={text} 
+            onChange={(e) => setText(e.target.value)} 
+            placeholder={`Написать в #${channel.name}...`} 
+            className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#23a559]/50 transition-colors" 
+          />
+          <button 
+            type="submit" 
+            disabled={!text.trim()} 
+            className="bg-[#23a559] hover:bg-[#1f8f4c] disabled:opacity-50 text-white p-3 rounded-xl shadow-[0_0_15px_rgba(35,165,89,0.2)] transition-all"
+          >
+            <Send size={20} />
+          </button>
         </form>
       </div>
 
+      {/* Модалка управления участниками */}
       <ManageMembersModal 
         isOpen={isManageModalOpen} 
         onClose={() => setIsManageModalOpen(false)} 

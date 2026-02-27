@@ -1,17 +1,16 @@
 {
-  "name": "echo",
+  "name": "echo-messenger",
+  "productName": "ECHO",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Удобный мессенджер для быстрого общения в игре", 
+  "author": "GeniusNear",
   "type": "module",
-  "permissions": [
-    "camera",
-    "microphone"
-  ],
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "build": "tsc && vite build && electron-builder -c.extraMetadata.main=dist-electron/main.js",
+    "publish": "tsc && vite build && electron-builder --publish always -c.extraMetadata.main=dist-electron/main.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
@@ -38,5 +37,34 @@
     "vite-plugin-electron": "^0.28.6",
     "vite-plugin-electron-renderer": "^0.14.5"
   },
-  "main": "dist-electron/main.js"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GeniusNear/echo.git"
+  },
+  "build": {
+    "appId": "com.echo.messenger",
+    "productName": "ECHO",
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "GeniusNear",
+        "repo": "echo-messenger"
+      }
+    ]
+  }
 }
