@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@layer base {
+  body {
+    @apply transition-colors duration-700 ease-in-out;
+  }
+}
+
+/* Эффект свечения для режима Gaming */
+.glow-green {
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+}
+
+/* Эффект свечения для режима Work */
+.glow-blue {
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+}
