@@ -95,8 +95,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         setRingtoneUrl(publicUrl)
         stopTestSound()
       }
-    } catch (error: any) {
-      alert('Ошибка загрузки: ' + error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Неизвестная ошибка'
+      alert('Ошибка загрузки: ' + message)
     } finally {
       bucket === 'avatars' ? setUploadingAvatar(false) : setUploadingMusic(false)
     }

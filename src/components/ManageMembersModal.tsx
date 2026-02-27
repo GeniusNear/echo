@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { X, UserMinus, UserPlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { UserWithStatus } from '../hooks/useUsers'
@@ -16,26 +16,24 @@ interface ManageMembersModalProps {
 export const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ isOpen, onClose, channelId, currentUserId, onInvite, onRemove, allUsers }) => {
   const [members, setMembers] = useState<string[]>([])
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     const { data } = await supabase.from('channel_members').select('user_id').eq('channel_id', channelId)
     if (data) setMembers(data.map(m => m.user_id))
-  }
+  }, [channelId])
 
   useEffect(() => {
     if (isOpen) fetchMembers()
-  }, [isOpen, channelId])
+  }, [isOpen, fetchMembers])
 
   if (!isOpen) return null
 
   const handleRemove = async (userId: string) => {
     await onRemove(userId)
-    // Сразу обновляем локальный список после удаления
     setMembers(prev => prev.filter(id => id !== userId))
   }
 
   const handleInvite = async (userId: string) => {
     await onInvite(userId)
-    // Сразу обновляем локальный список после добавления
     setMembers(prev => [...prev, userId])
   }
 
@@ -57,10 +55,10 @@ export const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ isOpen, 
             <div className="space-y-2">
               {currentMembers.map(user => (
                 <div key={user.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                  <span className="text-sm font-medium">{user.nickname || 'Аноним'} {user.id === currentUserId && "(Вы)"}</span>
+                  <span className="text-sm font-medium">{user.nickname || 'Аноним'} {user.id === currentUserId && '(Вы)'}</span>
                   {user.id !== currentUserId && (
-                    <button 
-                      onClick={() => handleRemove(user.id)} 
+                    <button
+                      onClick={() => handleRemove(user.id)}
                       className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                     >
                       <UserMinus size={18} />
@@ -78,8 +76,8 @@ export const ManageMembersModal: React.FC<ManageMembersModalProps> = ({ isOpen, 
               {nonMembers.map(user => (
                 <div key={user.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
                   <span className="text-sm font-medium">{user.nickname || 'Аноним'}</span>
-                  <button 
-                    onClick={() => handleInvite(user.id)} 
+                  <button
+                    onClick={() => handleInvite(user.id)}
                     className="p-1.5 text-green-400 hover:bg-green-400/10 rounded-lg transition-colors"
                   >
                     <UserPlus size={18} />

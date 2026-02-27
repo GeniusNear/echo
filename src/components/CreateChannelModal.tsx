@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X } from 'lucide-react'
 import { UserWithStatus } from '../hooks/useUsers'
 
 interface CreateChannelModalProps {

@@ -1,30 +1,59 @@
-# React + TypeScript + Vite
+# ECHO — голосовой чат на React + Electron + Supabase
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Приложение с комнатами, текстовым чатом и WebRTC-звонками.
 
-Currently, two official plugins are available:
+## Что уже есть
+- Авторизация через Supabase.
+- Профиль пользователя (ник, аватар, мелодия звонка).
+- Комнаты/каналы и управление участниками.
+- Текстовые сообщения в канале.
+- Голос/видео звонки в комнате.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Быстрый старт (для новичка)
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+### 1) Установи зависимости
+```bash
+npm install
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+### 2) Настрой переменные окружения
+```bash
+cp .env.example .env
+```
+
+Открой `.env` и заполни:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Эти данные берутся в Supabase → Project Settings → API.
+
+### 3) Запусти проект
+```bash
+npm run dev
+```
+
+## Проверки качества
+```bash
+npm run lint
+npx tsc --noEmit
+```
+
+## Сборка
+```bash
+npm run build
+```
+
+> Если упаковка Electron падает при скачивании бинарника, это обычно проблема сети/доступа к GitHub, а не кода.
+
+## Структура проекта (простыми словами)
+- `src/components` — визуальные блоки интерфейса.
+- `src/hooks` — логика (чаты, профиль, звонки) в виде React-хуков.
+- `src/lib/supabase.ts` — подключение к Supabase.
+- `electron/` — main/preload процессы Electron.
+
+## Куда развивать дальше
+1. Добавить миграции SQL (таблицы `profiles`, `channels`, `channel_members`, `messages`) в репозиторий.
+2. Перенести все строки UI в i18n (чтобы было легко менять язык).
+3. Добавить обработку ошибок Supabase в UI (toast-уведомления вместо `alert`).
+4. Написать e2e-тесты на базовые сценарии: вход, создание комнаты, отправка сообщения.
+5. Добавить CI: lint + typecheck + build (без упаковки release).

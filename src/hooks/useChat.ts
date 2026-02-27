@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 export interface Channel {
@@ -24,47 +24,43 @@ export const useChat = (activeChannelId: string | null, currentUserId: string | 
   const [messages, setMessages] = useState<Message[]>([])
   const [loadingChannels, setLoadingChannels] = useState(true)
 
-  // Загрузка списка каналов, где пользователь является членом
- const fetchChannels = async () => {
-  if (!currentUserId) return;
+  const fetchChannels = useCallback(async () => {
+    if (!currentUserId) return
 
-  setLoadingChannels(true);
+    setLoadingChannels(true)
 
-  try {
-    // Шаг 1 — мои channel_id
-    const { data: memberships, error: memErr } = await supabase
-      .from('channel_members')
-      .select('channel_id')
-      .eq('user_id', currentUserId);
+    try {
+      const { data: memberships, error: memErr } = await supabase
+        .from('channel_members')
+        .select('channel_id')
+        .eq('user_id', currentUserId)
 
-    if (memErr) throw memErr;
+      if (memErr) throw memErr
 
-    if (!memberships?.length) {
-      setChannels([]);
-      return;
+      if (!memberships?.length) {
+        setChannels([])
+        return
+      }
+
+      const channelIds = memberships.map(m => m.channel_id)
+
+      const { data, error } = await supabase
+        .from('channels')
+        .select('*')
+        .in('id', channelIds)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+
+      setChannels(data || [])
+    } catch (err) {
+      console.error('Ошибка загрузки каналов:', err)
+      setChannels([])
+    } finally {
+      setLoadingChannels(false)
     }
+  }, [currentUserId])
 
-    const channelIds = memberships.map(m => m.channel_id);
-
-    // Шаг 2 — сами каналы
-    const { data, error } = await supabase
-      .from('channels')
-      .select('*')
-      .in('id', channelIds)
-      .order('created_at', { ascending: true });
-
-    if (error) throw error;
-
-    setChannels(data || []);
-  } catch (err) {
-    console.error('Ошибка загрузки каналов:', err);
-    setChannels([]);
-  } finally {
-    setLoadingChannels(false);
-  }
-};
-
-  // Создание нового канала с добавлением членов
   const createChannel = async (name: string, memberIds: string[]) => {
     if (!currentUserId) return null
     const { data, error } = await supabase
@@ -72,9 +68,8 @@ export const useChat = (activeChannelId: string | null, currentUserId: string | 
       .insert([{ name, created_by: currentUserId }])
       .select()
       .single()
-    
+
     if (!error && data) {
-      // Добавляем создателя и выбранных членов
       const membersToInsert = [{ channel_id: data.id, user_id: currentUserId }, ...memberIds.map(id => ({ channel_id: data.id, user_id: id }))]
       await supabase.from('channel_members').insert(membersToInsert)
       setChannels(prev => [...prev, data])
@@ -83,18 +78,14 @@ export const useChat = (activeChannelId: string | null, currentUserId: string | 
     return null
   }
 
-  // Приглашение пользователя в канал
   const inviteUser = async (channelId: string, userId: string) => {
     await supabase.from('channel_members').insert([{ channel_id: channelId, user_id: userId }])
-    // Опционально: уведомить пользователя через broadcast или presence
   }
 
-  // Исключение пользователя из канала
   const removeUser = async (channelId: string, userId: string) => {
     await supabase.from('channel_members').delete().eq('channel_id', channelId).eq('user_id', userId)
   }
 
-  // Отправка сообщения
   const sendMessage = async (content: string) => {
     if (!activeChannelId || !currentUserId) return
     await supabase
@@ -105,7 +96,7 @@ export const useChat = (activeChannelId: string | null, currentUserId: string | 
   useEffect(() => {
     if (!currentUserId) return
     fetchChannels()
-  }, [currentUserId])
+  }, [currentUserId, fetchChannels])
 
   useEffect(() => {
     if (!activeChannelId) {

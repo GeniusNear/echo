@@ -1,32 +1,32 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+
+type SignalData = RTCSessionDescriptionInit | RTCIceCandidateInit | { isVideoEnabled: boolean }
 
 interface SignalMessage {
   type: 'offer' | 'answer' | 'ice-candidate' | 'user-joined' | 'user-left' | 'video-status'
   senderId: string
   targetId?: string
-  data?: any
+  data?: SignalData
+}
+
+const RTC_CONFIG: RTCConfiguration = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 }
 
 export const useWebRTC = (roomId: string | null, currentUserId: string | undefined) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({})
   const [isCalling, setIsCalling] = useState(false)
-  
-  // Наши локальные статусы
+
   const [isVideoEnabled, setIsVideoEnabled] = useState(true)
   const [isAudioEnabled, setIsAudioEnabled] = useState(true)
-  
-  // Статусы камер других участников: { [userId]: true | false }
   const [remoteVideoStatus, setRemoteVideoStatus] = useState<Record<string, boolean>>({})
 
   const peersRef = useRef<Record<string, RTCPeerConnection>>({})
-  const channelRef = useRef<any>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
-
-  const rtcConfig = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-  }
 
   const sendSignal = useCallback((message: SignalMessage) => {
     if (channelRef.current) {
@@ -41,7 +41,7 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
   const createPeerConnection = useCallback((targetId: string, stream: MediaStream) => {
     if (peersRef.current[targetId]) return peersRef.current[targetId]
 
-    const peer = new RTCPeerConnection(rtcConfig)
+    const peer = new RTCPeerConnection(RTC_CONFIG)
     peersRef.current[targetId] = peer
 
     stream.getTracks().forEach(track => {
@@ -50,13 +50,12 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
 
     peer.ontrack = (event) => {
       setRemoteStreams(prev => ({ ...prev, [targetId]: event.streams[0] }))
-      // По умолчанию считаем, что камера включена, пока не получим сигнал об обратном
       setRemoteVideoStatus(prev => ({ ...prev, [targetId]: true }))
     }
 
     peer.onicecandidate = (event) => {
       if (event.candidate && currentUserId) {
-        sendSignal({ type: 'ice-candidate', senderId: currentUserId, targetId: targetId, data: event.candidate })
+        sendSignal({ type: 'ice-candidate', senderId: currentUserId, targetId, data: event.candidate.toJSON() })
       }
     }
 
@@ -68,17 +67,17 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
     setIsCalling(true)
 
     try {
-      let stream: MediaStream;
-      let initialVideoStatus = true;
+      let stream: MediaStream
+      let initialVideoStatus = true
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       } catch (mediaErr) {
-        console.warn("Камера недоступна, пробуем только микрофон...", mediaErr)
+        console.warn('Камера недоступна, пробуем только микрофон...', mediaErr)
         stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
         initialVideoStatus = false
         setIsVideoEnabled(false)
       }
-      
+
       setLocalStream(stream)
       streamRef.current = stream
 
@@ -92,10 +91,10 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
       channel.on('broadcast', { event: 'webrtc_signal' }, async ({ payload }) => {
         const msg = payload as SignalMessage
         if (msg.senderId === currentUserId) return
-        
-        // Обработка статуса видео
+
         if (msg.type === 'video-status') {
-          setRemoteVideoStatus(prev => ({ ...prev, [msg.senderId]: msg.data.isVideoEnabled }))
+          const statusPayload = msg.data as { isVideoEnabled?: boolean } | undefined
+          setRemoteVideoStatus(prev => ({ ...prev, [msg.senderId]: Boolean(statusPayload?.isVideoEnabled) }))
           return
         }
 
@@ -106,41 +105,37 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
           const offer = await peer.createOffer()
           await peer.setLocalDescription(offer)
           sendSignal({ type: 'offer', senderId: currentUserId, targetId: msg.senderId, data: offer })
-          
-          // Отправляем новому участнику НАШ текущий статус камеры
-          // Используем состояние из переменной (или рефа, если нужно самое свежее)
-          sendSignal({ 
-            type: 'video-status', 
-            senderId: currentUserId, 
-            targetId: msg.senderId, 
-            data: { isVideoEnabled: initialVideoStatus } 
+          sendSignal({
+            type: 'video-status',
+            senderId: currentUserId,
+            targetId: msg.senderId,
+            data: { isVideoEnabled: initialVideoStatus }
           })
         }
 
         if (msg.type === 'offer') {
           const peer = createPeerConnection(msg.senderId, stream)
-          await peer.setRemoteDescription(new RTCSessionDescription(msg.data))
+          await peer.setRemoteDescription(new RTCSessionDescription(msg.data as RTCSessionDescriptionInit))
           const answer = await peer.createAnswer()
           await peer.setLocalDescription(answer)
           sendSignal({ type: 'answer', senderId: currentUserId, targetId: msg.senderId, data: answer })
-          
-          // При ответе также шлем свой статус
-           sendSignal({ 
-            type: 'video-status', 
-            senderId: currentUserId, 
-            targetId: msg.senderId, 
-            data: { isVideoEnabled: streamRef.current?.getVideoTracks()[0]?.enabled ?? false } 
+
+          sendSignal({
+            type: 'video-status',
+            senderId: currentUserId,
+            targetId: msg.senderId,
+            data: { isVideoEnabled: streamRef.current?.getVideoTracks()[0]?.enabled ?? false }
           })
         }
 
         if (msg.type === 'answer') {
           const peer = peersRef.current[msg.senderId]
-          if (peer) await peer.setRemoteDescription(new RTCSessionDescription(msg.data))
+          if (peer) await peer.setRemoteDescription(new RTCSessionDescription(msg.data as RTCSessionDescriptionInit))
         }
 
         if (msg.type === 'ice-candidate') {
           const peer = peersRef.current[msg.senderId]
-          if (peer) await peer.addIceCandidate(new RTCIceCandidate(msg.data))
+          if (peer) await peer.addIceCandidate(new RTCIceCandidate(msg.data as RTCIceCandidateInit))
         }
 
         if (msg.type === 'user-left') {
@@ -168,9 +163,9 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
         }
       })
 
-    } catch (err: any) {
-      console.error("Критическая ошибка запуска звонка:", err)
-      alert(`Не удалось запустить звонок. Проверьте доступ к микрофону!`)
+    } catch (err: unknown) {
+      console.error('Критическая ошибка запуска звонка:', err)
+      alert('Не удалось запустить звонок. Проверьте доступ к микрофону!')
       setIsCalling(false)
     }
   }
@@ -184,7 +179,7 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
     }
-    
+
     setLocalStream(null)
     setIsCalling(false)
     setRemoteStreams({})
@@ -198,7 +193,7 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
-  }, [localStream, sendSignal, currentUserId])
+  }, [sendSignal, currentUserId])
 
   useEffect(() => {
     return () => {
@@ -215,9 +210,8 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
         if (channelRef.current) supabase.removeChannel(channelRef.current)
       }
     }
-  }, [roomId])
+  }, [roomId, currentUserId])
 
-  // Обновленный toggleVideo: теперь отправляет сигнал
   const toggleVideo = () => {
     if (localStream) {
       const videoTrack = localStream.getVideoTracks()[0]
@@ -225,8 +219,7 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
         videoTrack.enabled = !videoTrack.enabled
         const newStatus = videoTrack.enabled
         setIsVideoEnabled(newStatus)
-        
-        // Отправляем сигнал всем участникам
+
         if (currentUserId) {
           sendSignal({
             type: 'video-status',
@@ -248,6 +241,5 @@ export const useWebRTC = (roomId: string | null, currentUserId: string | undefin
     }
   }
 
-  // Возвращаем remoteVideoStatus наружу
   return { isCalling, localStream, remoteStreams, remoteVideoStatus, startCall, endCall, toggleVideo, toggleAudio, isVideoEnabled, isAudioEnabled }
 }

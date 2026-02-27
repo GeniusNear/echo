@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { Settings, Sword, Briefcase, Plus, MessageSquare } from 'lucide-react'
 import { Channel } from '../hooks/useChat'
-import { CreateChannelModal } from './CreateChannelModal' // Новый импорт
+import { UserWithStatus } from '../hooks/useUsers'
+import { CreateChannelModal } from './CreateChannelModal'
 
 interface SidebarProps {
   mode: 'work' | 'gaming'
@@ -10,12 +12,19 @@ interface SidebarProps {
   onChannelSelect: (id: string) => void
   onCreateChannel: (name: string, members: string[]) => void
   onOpenSettings?: () => void
-  allUsers: any[] // Из useUsers
+  allUsers: UserWithStatus[]
   currentUserId: string
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ 
-  mode, channels, activeChannelId, onChannelSelect, onCreateChannel, onOpenSettings, allUsers, currentUserId 
+interface SidebarItemProps {
+  icon: LucideIcon
+  label: string
+  active?: boolean
+  onClick: () => void
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({
+  mode, channels, activeChannelId, onChannelSelect, onCreateChannel, onOpenSettings, allUsers, currentUserId
 }) => {
   const isGaming = mode === 'gaming'
   const [isCreating, setIsCreating] = useState(false)
@@ -24,8 +33,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div className={`w-64 h-full flex flex-col transition-all duration-700 relative z-20 ${
       isGaming ? 'bg-[#050505] border-r border-green-500/20' : 'bg-slate-900 border-r border-white/5'
     }`}>
-      
-      {/* Шапка */}
       <div className="p-6 pb-2">
         <div className={`flex items-center gap-3 font-black tracking-tighter ${
           isGaming ? 'text-green-400' : 'text-cyan-400'
@@ -35,34 +42,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* Список комнат */}
       <div className="flex-1 px-4 space-y-1 overflow-y-auto mt-4">
         <div className="flex items-center justify-between px-2 mb-2">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
             Голосовые комнаты
           </p>
-          <button 
+          <button
             onClick={() => setIsCreating(true)}
             className="text-green-500 hover:text-green-400 transition-colors"
           >
-            <Plus size={18} /> {/* Больше и цветной */}
+            <Plus size={18} />
           </button>
         </div>
 
         {channels.map(channel => (
-          <SidebarItem 
+          <SidebarItem
             key={channel.id}
-            icon={MessageSquare} 
-            label={channel.name} 
-            active={activeChannelId === channel.id} 
+            icon={MessageSquare}
+            label={channel.name}
+            active={activeChannelId === channel.id}
             onClick={() => onChannelSelect(channel.id)}
           />
         ))}
       </div>
 
-      {/* Футер сайдбара */}
       <div className="p-4 border-t border-white/5">
-        <div 
+        <div
           onClick={onOpenSettings}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all group hover:bg-white/5 hover:text-slate-200 text-slate-400"
         >
@@ -71,9 +76,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      <CreateChannelModal 
-        isOpen={isCreating} 
-        onClose={() => setIsCreating(false)} 
+      <CreateChannelModal
+        isOpen={isCreating}
+        onClose={() => setIsCreating(false)}
         onCreate={onCreateChannel}
         allUsers={allUsers}
         currentUserId={currentUserId}
@@ -82,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   )
 }
 
-const SidebarItem = ({ icon: Icon, label, active = false, onClick }: any) => (
+const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, active = false, onClick }) => (
   <div
     onClick={onClick}
     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all group relative ${

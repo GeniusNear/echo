@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Users, X, Settings } from 'lucide-react' 
+import { Send, Phone, PhoneOff, Mic, MicOff, Video, VideoOff, X, Settings } from 'lucide-react' 
 import { Message, Channel } from '../hooks/useChat'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { VideoPlayer } from './VideoPlayer'

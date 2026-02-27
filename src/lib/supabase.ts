@@ -1,8 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Пока мы не создали проект в админке Supabase, 
-// используем заглушки, чтобы код не выдавал ошибки.
-const supabaseUrl = 'https://rhrasbvydygitovyjdhs.supabase.co'
-const supabaseKey = 'sb_publishable_XkqIrp8uQ2M_HsS8RS47sA_PuD_h7Tz'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    'Не заданы VITE_SUPABASE_URL и/или VITE_SUPABASE_ANON_KEY. ' +
+    'Создайте файл .env (можно скопировать из .env.example) и перезапустите dev-сервер.'
+  )
+}
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
